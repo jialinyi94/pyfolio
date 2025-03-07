@@ -74,15 +74,16 @@ DURATION_STATS = OrderedDict(
 
 
 def agg_all_long_short(round_trips, col, stats_dict):
+    flat_stats_dict = {key: value for key, value in stats_dict.items()}
     stats_all = (round_trips
                  .assign(ones=1)
                  .groupby('ones')[col]
-                 .agg(stats_dict)
+                 .agg(flat_stats_dict)
                  .T
                  .rename(columns={1.0: 'All trades'}))
     stats_long_short = (round_trips
                         .groupby('long')[col]
-                        .agg(stats_dict)
+                        .agg(flat_stats_dict)
                         .T
                         .rename(columns={False: 'Short trades',
                                          True: 'Long trades'}))
@@ -301,7 +302,7 @@ def add_closing_transactions(positions, transactions):
     # they don't conflict with other round_trips executed at that time.
     end_dt = open_pos.name + pd.Timedelta(seconds=1)
 
-    for sym, ending_val in open_pos.iteritems():
+    for sym, ending_val in open_pos.items():
         txn_sym = transactions[transactions.symbol == sym]
 
         ending_amount = txn_sym.amount.sum()
@@ -314,7 +315,7 @@ def add_closing_transactions(positions, transactions):
         ])
 
         closing_txn = pd.DataFrame(closing_txn, index=[end_dt])
-        closed_txns = closed_txns.append(closing_txn)
+        closed_txns = pd.concat([closed_txns, closing_txn]) 
 
     closed_txns = closed_txns[closed_txns.amount != 0]
 
