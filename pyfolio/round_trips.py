@@ -74,20 +74,22 @@ DURATION_STATS = OrderedDict(
 
 
 def agg_all_long_short(round_trips, col, stats_dict):
-    flat_stats_dict = {key: value for key, value in stats_dict.items()}
+    named_aggregations = {f"{key}": (col, value) for key, value in stats_dict.items()}
+    
+    # Apply the named aggregations
     stats_all = (round_trips
                  .assign(ones=1)
-                 .groupby('ones')[col]
-                 .agg(flat_stats_dict)
+                 .groupby('ones')
+                 .agg(**named_aggregations)
                  .T
-                 .rename(columns={1.0: 'All trades'}))
+                 .rename(columns={1: 'All trades'}))
+    
     stats_long_short = (round_trips
-                        .groupby('long')[col]
-                        .agg(flat_stats_dict)
+                        .groupby('long')
+                        .agg(**named_aggregations)
                         .T
-                        .rename(columns={False: 'Short trades',
-                                         True: 'Long trades'}))
-
+                        .rename(columns={False: 'Short trades', True: 'Long trades'}))
+    
     return stats_all.join(stats_long_short)
 
 
@@ -378,8 +380,10 @@ def gen_round_trip_stats(round_trips):
     stats['returns'] = agg_all_long_short(round_trips, 'returns',
                                           RETURN_STATS)
 
-    stats['symbols'] = \
-        round_trips.groupby('symbol')['returns'].agg(RETURN_STATS).T
+    named_aggregations = {f"{key}": ('returns', value) for key, value in RETURN_STATS.items()}
+    stats['symbols'] = round_trips.groupby('symbol').agg(**named_aggregations).T
+    # stats['symbols'] = \
+    #     round_trips.groupby('symbol')['returns'].agg(RETURN_STATS).T
 
     return stats
 
