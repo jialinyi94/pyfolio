@@ -74,19 +74,22 @@ DURATION_STATS = OrderedDict(
 
 
 def agg_all_long_short(round_trips, col, stats_dict):
+    named_aggregations = {f"{key}": (col, value) for key, value in stats_dict.items()}
+    
+    # Apply the named aggregations
     stats_all = (round_trips
                  .assign(ones=1)
-                 .groupby('ones')[col]
-                 .agg(stats_dict)
+                 .groupby('ones')
+                 .agg(**named_aggregations)
                  .T
-                 .rename(columns={1.0: 'All trades'}))
+                 .rename(columns={1: 'All trades'}))
+    
     stats_long_short = (round_trips
-                        .groupby('long')[col]
-                        .agg(stats_dict)
+                        .groupby('long')
+                        .agg(**named_aggregations)
                         .T
-                        .rename(columns={False: 'Short trades',
-                                         True: 'Long trades'}))
-
+                        .rename(columns={False: 'Short trades', True: 'Long trades'}))
+    
     return stats_all.join(stats_long_short)
 
 
@@ -301,7 +304,7 @@ def add_closing_transactions(positions, transactions):
     # they don't conflict with other round_trips executed at that time.
     end_dt = open_pos.name + pd.Timedelta(seconds=1)
 
-    for sym, ending_val in open_pos.iteritems():
+    for sym, ending_val in open_pos.items():
         txn_sym = transactions[transactions.symbol == sym]
 
         ending_amount = txn_sym.amount.sum()
@@ -314,7 +317,7 @@ def add_closing_transactions(positions, transactions):
         ])
 
         closing_txn = pd.DataFrame(closing_txn, index=[end_dt])
-        closed_txns = closed_txns.append(closing_txn)
+        closed_txns = pd.concat([closed_txns, closing_txn]) 
 
     closed_txns = closed_txns[closed_txns.amount != 0]
 
@@ -377,8 +380,10 @@ def gen_round_trip_stats(round_trips):
     stats['returns'] = agg_all_long_short(round_trips, 'returns',
                                           RETURN_STATS)
 
-    stats['symbols'] = \
-        round_trips.groupby('symbol')['returns'].agg(RETURN_STATS).T
+    named_aggregations = {f"{key}": ('returns', value) for key, value in RETURN_STATS.items()}
+    stats['symbols'] = round_trips.groupby('symbol').agg(**named_aggregations).T
+    # stats['symbols'] = \
+    #     round_trips.groupby('symbol')['returns'].agg(RETURN_STATS).T
 
     return stats
 

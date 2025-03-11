@@ -315,7 +315,7 @@ def plot_holdings(returns, positions, legend_loc='best', ax=None, **kwargs):
 
     positions = positions.copy().drop('cash', axis='columns')
     df_holdings = positions.replace(0, np.nan).count(axis=1)
-    df_holdings_by_month = df_holdings.resample('1M').mean()
+    df_holdings_by_month = df_holdings.resample('1ME').mean()
     df_holdings.plot(color='steelblue', alpha=0.6, lw=0.5, ax=ax, **kwargs)
     df_holdings_by_month.plot(
         color='orangered',
@@ -644,10 +644,11 @@ def show_perf_stats(returns, factor_returns=None, positions=None,
                                             APPROX_BDAYS_PER_MONTH)
         perf_stats = pd.DataFrame(perf_stats_all, columns=['Backtest'])
 
+    perf_stats = perf_stats.astype(str)
     for column in perf_stats.columns:
-        for stat, value in perf_stats[column].iteritems():
+        for stat, value in perf_stats[column].items():
             if stat in STAT_FUNCS_PCT:
-                perf_stats.loc[stat, column] = str(np.round(value * 100,
+                perf_stats.loc[stat, column] = str(np.round(float(value) * 100,
                                                             3)) + '%'
     if header_rows is None:
         header_rows = date_rows
@@ -820,7 +821,7 @@ def plot_rolling_returns(returns,
                 is_returns,
                 len(oos_cum_returns),
                 cone_std=cone_std,
-                starting_value=is_cum_returns[-1])
+                starting_value=is_cum_returns.iloc[-1])
 
             cone_bounds = cone_bounds.set_index(oos_cum_returns.index)
             for std in cone_std:
@@ -1368,7 +1369,7 @@ def plot_turnover(returns, transactions, positions, turnover_denom='AGB',
     ax.yaxis.set_major_formatter(FuncFormatter(y_axis_formatter))
 
     df_turnover = txn.get_turnover(positions, transactions, turnover_denom)
-    df_turnover_by_month = df_turnover.resample("M").mean()
+    df_turnover_by_month = df_turnover.resample("ME").mean()
     df_turnover.plot(color='steelblue', alpha=1.0, lw=0.5, ax=ax, **kwargs)
     df_turnover_by_month.plot(
         color='orangered',
@@ -1550,7 +1551,7 @@ def plot_daily_turnover_hist(transactions, positions, turnover_denom='AGB',
     if ax is None:
         ax = plt.gca()
     turnover = txn.get_turnover(positions, transactions, turnover_denom)
-    sns.distplot(turnover, ax=ax, **kwargs)
+    sns.histplot(turnover, ax=ax, **kwargs)
     ax.set_title('Distribution of daily turnover rates')
     ax.set_xlabel('Turnover rate')
     return ax
@@ -1769,10 +1770,11 @@ def plot_round_trip_lifetimes(round_trips, disp_amount=16, lsize=18, ax=None):
                     [y_ix, y_ix], color=c,
                     linewidth=lsize, solid_capstyle='butt')
 
-    ax.set_yticks(range(disp_amount))
-    ax.set_yticklabels([utils.format_asset(s) for s in sample])
+    actual_disp_amount = min(len(sample), disp_amount)
+    ax.set_yticks(range(actual_disp_amount))
+    ax.set_yticklabels([utils.format_asset(s) for s in sample[:actual_disp_amount]])
 
-    ax.set_ylim((-0.5, min(len(sample), disp_amount) - 0.5))
+    ax.set_ylim((-0.5, actual_disp_amount - 0.5))
     blue = patches.Rectangle([0, 0], 1, 1, color='b', label='Long')
     red = patches.Rectangle([0, 0], 1, 1, color='r', label='Short')
     leg = ax.legend(handles=[blue, red], loc='lower left',
